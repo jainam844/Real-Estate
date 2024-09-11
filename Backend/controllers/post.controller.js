@@ -2,9 +2,34 @@ import prisma from "../lib/prisma.js";
 
 // Function to get all posts
 export const getPosts = async (req, res) => {
+    const query = req.query;
+
     try {
-        const posts = await prisma.post.findMany(); // Fetch posts from the database using Prisma
-        res.status(200).json(posts); // Return the posts in the response
+        // Convert query parameters to the correct types
+        const minPrice = parseInt(query.minPrice) || 0;
+        const maxPrice = parseInt(query.maxPrice) || Number.MAX_SAFE_INTEGER;
+        const bedroom = parseInt(query.bedroom) || undefined;
+
+        // Fetch posts based on query parameters
+        const posts = await prisma.post.findMany({
+            where: {
+                city: query.city || undefined,
+                type: query.type || undefined,
+                property: query.property || undefined,
+                bedroom: bedroom,
+                price: {
+                    gte: minPrice,
+                },
+            },
+        });
+        
+
+        // Log the posts and return them in the response
+        console.log(posts);
+        console.log("Query params:", query);
+        console.log("Posts result:", posts);
+
+        res.status(200).json(posts);
     } catch (err) {
         console.log(err);
         res.status(500).json({ message: "Failed to get posts" });
