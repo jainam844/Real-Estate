@@ -1,6 +1,6 @@
 import prisma from "../lib/prisma.js";
+import jwt from "jsonwebtoken";
 
-// Function to get all posts
 export const getPosts = async (req, res) => {
     const query = req.query;
 
@@ -22,13 +22,6 @@ export const getPosts = async (req, res) => {
                 },
             },
         });
-        
-
-        // Log the posts and return them in the response
-        console.log(posts);
-        console.log("Query params:", query);
-        console.log("Posts result:", posts);
-
         res.status(200).json(posts);
     } catch (err) {
         console.log(err);
@@ -36,12 +29,12 @@ export const getPosts = async (req, res) => {
     }
 };
 
-// Define other route handlers (stubs to be implemented)
 export const getPost = async (req, res) => {
     try {
         const id = req.params.id;
         const post = await prisma.post.findUnique({
-            where: { id }, include: {
+            where: { id },
+            include: {
                 postDetail: true,
                 user: {
                     select: {
@@ -49,17 +42,39 @@ export const getPost = async (req, res) => {
                         avatar: true,
                     },
                 },
-            }
+            },
         });
+
         if (!post) {
             return res.status(404).json({ message: "Post not found" });
         }
-        res.status(200).json(post);
+
+        const token = req.cookies?.token;
+        if (token) {
+            jwt.verify(token, process.env.JWT_SECRET_KEY, async (err, payload) => {
+                if (!err) {
+                    const saved = await prisma.savedPost.findUnique({
+                        where: {
+                            userId_postId: {
+                                postId: id,
+                                userId: payload.id,
+                            },
+                        },
+                    });
+                    return res.status(200).json({ ...post, isSaved: saved ? true : false }); // Exit after sending the response
+                } else {
+                    // Handle JWT verification error if necessary
+                }
+            });
+        } else {
+            return res.status(200).json({ ...post, isSaved: false }); // Return after sending response
+        }
     } catch (err) {
         console.log(err);
         res.status(500).json({ message: "Failed to get post" });
     }
 };
+
 export const addPost = async (req, res) => {
     const { postData, postDetail } = req.body;  // Destructure to get postData and postDetail
     const tokenUserId = req.userId;
