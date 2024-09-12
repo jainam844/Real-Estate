@@ -14,8 +14,6 @@ export const getUsers = async (req, res) => {
 
 export const getUser = async (req, res) => {
     const id = req.params.id;
-
-    // Validate the ID length and structure
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid user ID format." });
     }
