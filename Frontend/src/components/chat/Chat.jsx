@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./chat.scss";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import apiRequest from "../../lib/apiRequest";
 import { format } from "timeago.js";
 import { SocketContext } from "../../context/SocketContext";
+import { useRef } from "react";
 function Chat({ chats }) {
-
+  const messageEndRef = useRef();
   const [chat, setChat] = useState(null);
   const { currentUser } = useContext(AuthContext)
   const { socket } = useContext(SocketContext)
@@ -20,7 +21,6 @@ function Chat({ chats }) {
     }
   }
   const handleSubmit = async (e) => {
-
     e.preventDefault();
     const formData = new FormData(e.target);
     const text = formData.get("text")
@@ -29,13 +29,44 @@ function Chat({ chats }) {
     try {
       const res = await apiRequest.post("/messages/" + chat.id, { text })
       setChat((prev) => ({ ...prev, messages: [...prev.messages, res.data] }));
-      e.target.reset()
+      e.target.reset();
+      socket.emit("sendMessage", {
+        receiverId: chat.receiver.id,
+        data: res.data,
+      });
 
     } catch (err) {
       console.log(err);
     }
 
   }
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat]);
+
+  useEffect(() => {
+    const read = async () => {
+      try {
+        await apiRequest.put("/chats/read/" + chat.id);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    if (chat && socket) {
+      socket.on("getMessage", (data) => {
+        if (chat.id === data.chatId) {
+          setChat((prev) => ({ ...prev, messages: [...prev.messages, data] }));
+          read();
+        }
+      });
+    }
+    return () => {
+      socket.off("getMessage");
+    };
+  }, [socket, chat]);
+
   return (
     <div className="chat">
       <div className="messages">
@@ -82,7 +113,7 @@ function Chat({ chats }) {
                 <span>{format(message.createdAt)}</span>
               </div>
             ))}
-
+            <div ref={messageEndRef}></div>
           </div>
           <form onSubmit={handleSubmit} className="bottom">
             <textarea name="text"></textarea>

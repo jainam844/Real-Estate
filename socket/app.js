@@ -2,12 +2,47 @@ import { Server } from "socket.io";
 
 const io = new Server({
     cors: {
-        origin: "http://localhost:5173"
+        origin: "http://localhost:5173",
+    },
+});
+
+let onlineUser = [];
+
+const addUser = (userId, socketId) => {
+    const userExists = onlineUser.find((user) => user.userId === userId);
+    if (!userExists) {
+        onlineUser.push({ userId, socketId });
     }
-})
+};
+
+const removeUser = (socketId) => {
+    onlineUser = onlineUser.filter((user) => user.socketId !== socketId);
+};
+
+const getUser = (userId) => {
+    return onlineUser.find((user) => user.userId === userId);
+};
 
 io.on("connection", (socket) => {
-    console.log(socket.id)
-})
+    socket.on("newUser", (userId) => {
+        addUser(userId, socket.id);
+    });
+
+    // Handle sendMessage event
+    socket.on("sendMessage", ({ receiverId, data }) => {
+        const receiver = getUser(receiverId);
+        if (receiver) {
+            io.to(receiver.socketId).emit("getMessage", data);
+        } else {
+            console.log(`User with ID ${receiverId} is not online`);
+        }
+    });
+
+    // Handle disconnect
+    socket.on("disconnect", () => {
+        console.log("A user disconnected:", socket.id);
+        removeUser(socket.id);
+    });
+});
 
 io.listen("4000");
