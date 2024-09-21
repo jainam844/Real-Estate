@@ -31,7 +31,7 @@ function ProfilePage() {
       </div>
     ));
   };
-  
+
   return (
     <div className="profilePage">
       <div className="details">
@@ -91,7 +91,16 @@ function ProfilePage() {
       </div>
       <div className="chatContainer">
         <div className="wrapper">
-          <Chat />
+          <Suspense fallback={<div className="skeletonContainer">{renderCardSkeletons()}</div>}>
+            <Await
+              resolve={data.chatResponse}
+              errorElement={<p>Error loading posts!</p>}
+            >
+              {(chatResponse) =>
+                <Chat chats={chatResponse.data}/>
+              }
+            </Await>
+          </Suspense>
         </div>
       </div>
     </div>
