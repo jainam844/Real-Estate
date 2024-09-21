@@ -25,13 +25,29 @@ export const getChat = async (req, res) => {
                 userIDs: {
                     hasSome: [tokenUserId]
                 }
+            },
+            include: {
+                messages: {
+                    orderBy: {
+                        createdAt: "asc"
+                    }
+                }
             }
         });
 
         if (!chat) {
             return res.status(404).json({ message: "Chat not found!" });
         }
-
+        await prisma.chat.update({
+            where: {
+                id: req.params.id
+            },
+            data: {
+                seenBy: {
+                    set: [tokenUserId]
+                }
+            }
+        })
         res.status(200).json(chat);
     } catch (err) {
         console.log(err);
@@ -54,9 +70,24 @@ export const addChat = async (req, res) => {
     }
 };
 export const readChat = async (req, res) => {
-    try {
+    const tokenUserId = req.userId;
 
-        res.status(200).json(users);
+    try {
+        const chat = await prisma.chat.update({
+            where:{
+                id:req.params.id,
+                userIDs: {
+                    hasSome: [tokenUserId]
+                }
+            },
+            data:{
+                seenBy:{
+                    set:[tokenUserId]
+                }
+            }
+        })
+
+        res.status(200).json(chat);
     } catch (err) {
         console.log(err);
         res.status(500).json({ message: "Failed to get users!" });
